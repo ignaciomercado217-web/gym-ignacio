@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Dashboard from './pages/Dashboard'
 import Workout from './pages/Workout'
-import History from './pages/Historial'
+import History from './pages/History'
 import WorkoutDetail from './pages/WorkoutDetail'
 
 function App() {
