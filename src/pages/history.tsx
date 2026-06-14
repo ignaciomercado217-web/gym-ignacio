@@ -1,0 +1,1 @@
+<button disabled>Ver detalle</button>

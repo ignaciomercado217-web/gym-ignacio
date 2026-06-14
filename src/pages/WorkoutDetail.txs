@@ -1,0 +1,88 @@
+import { useEffect, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
+
+type ExerciseLog = {
+  id: number
+  volume: number
+  improvement_percent: number
+  status: 'better' | 'same' | 'worse'
+  exercises: {
+    name: string
+  } | null
+  sets: {
+    set_number: number
+    weight: number
+    reps: number
+  }[]
+}
+
+export default function WorkoutDetail() {
+  const { id } = useParams()
+  const [logs, setLogs] = useState<ExerciseLog[]>([])
+
+  useEffect(() => {
+    async function loadDetail() {
+      const { data } = await supabase
+        .from('exercise_logs')
+        .select(`
+          id,
+          volume,
+          improvement_percent,
+          status,
+          exercises(name),
+          sets(set_number, weight, reps)
+        `)
+        .eq('workout_id', id)
+        .order('id')
+
+      setLogs((data ?? []) as ExerciseLog[])
+    }
+
+    loadDetail()
+  }, [id])
+
+  function getStatusLabel(status: string) {
+    if (status === 'better') return '🟢 Mejor'
+    if (status === 'same') return '🟡 Igual'
+    return '🔴 Peor'
+  }
+
+  return (
+    <div style={{ padding: 20 }}>
+      <Link to="/history">
+        <button style={{ marginBottom: 16 }}>← Volver al historial</button>
+      </Link>
+
+      <h1>Detalle del entrenamiento</h1>
+
+      {logs.map((log) => (
+        <div
+          key={log.id}
+          style={{
+            padding: 12,
+            marginBottom: 12,
+            border: '1px solid #ddd',
+            borderRadius: 8,
+          }}
+        >
+          <h3>{log.exercises?.name ?? 'Ejercicio'}</h3>
+
+          <p>Volumen: {log.volume} kg</p>
+          <p>Mejora: {log.improvement_percent}%</p>
+          <p>{getStatusLabel(log.status)}</p>
+
+          <h4>Series</h4>
+
+          {log.sets
+            ?.sort((a, b) => a.set_number - b.set_number)
+            .map((set) => (
+              <p key={set.set_number}>
+                Serie {set.set_number}: {set.reps} reps x {set.weight} kg
+              </p>
+            ))}
+        </div>
+      ))}
+    </div>
+  )
+}

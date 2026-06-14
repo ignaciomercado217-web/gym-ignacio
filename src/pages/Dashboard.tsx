@@ -173,6 +173,11 @@ export default function Dashboard() {
 
       <Link to="/workout">
         <button style={{ marginBottom: 24 }}>Iniciar entrenamiento</button>
+        <br />
+
+<Link to="/history">
+  <button>Ver historial</button>
+</Link>
       </Link>
 
       <h2>Próximos pesos programados</h2>
