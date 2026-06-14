@@ -93,9 +93,9 @@ export default function History() {
             <p>Volumen: {workout.total_volume} kg</p>
           </div>
 
-          <button className="secondary-button" disabled>
-            Ver detalle
-          </button>
+          <Link to={`/history/${workout.id}`}>
+            <button className="secondary-button">Ver detalle</button>
+          </Link>
         </div>
       ))}
     </main>

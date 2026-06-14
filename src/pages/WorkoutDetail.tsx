@@ -100,44 +100,63 @@ export default function WorkoutDetail() {
   }
 
   return (
-    <div style={{ padding: 20 }}>
+    <main className="page">
       <Link to="/history">
-        <button style={{ marginBottom: 16 }}>← Volver al historial</button>
+        <button className="secondary-button" style={{ marginBottom: 18 }}>
+          ← Volver al historial
+        </button>
       </Link>
 
-      <h1>Detalle del entrenamiento</h1>
+      <h1 className="title">Detalle</h1>
+      <p className="subtitle">Revisión completa del entrenamiento.</p>
 
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+      {error && (
+        <div className="card">
+          <p style={{ color: '#ff6b6b' }}>{error}</p>
+        </div>
+      )}
 
       {logs.length === 0 && !error && (
-        <p>No hay detalles para este entrenamiento.</p>
+        <div className="card">
+          <p>No hay detalles para este entrenamiento.</p>
+        </div>
       )}
 
       {logs.map((log) => (
-        <div
-          key={log.id}
-          style={{
-            padding: 12,
-            marginBottom: 12,
-            border: '1px solid #ddd',
-            borderRadius: 8,
-          }}
-        >
-          <h3>{exercises[log.exercise_id] ?? 'Ejercicio'}</h3>
+        <div key={log.id} className="card">
+          <h2 style={{ marginTop: 0 }}>
+            {exercises[log.exercise_id] ?? 'Ejercicio'}
+          </h2>
 
-          <p>Volumen: {log.volume} kg</p>
-          <p>Mejora: {log.improvement_percent}%</p>
-          <p>{getStatusLabel(log.status)}</p>
+          <div className="grid">
+            <div className="stat">
+              <div className="stat-label">Volumen</div>
+              <div className="stat-value">{log.volume} kg</div>
+            </div>
 
-          <h4>Series</h4>
+            <div className="stat">
+              <div className="stat-label">Mejora</div>
+              <div className="stat-value">{log.improvement_percent}%</div>
+            </div>
+          </div>
+
+          <div className="stat" style={{ marginTop: 14 }}>
+            <div className="stat-label">Estado</div>
+            <div className="stat-value">{getStatusLabel(log.status)}</div>
+          </div>
+
+          <h3>Series</h3>
 
           {(sets[log.id] ?? []).map((set) => (
-            <p key={set.id}>
-              Serie {set.set_number}: {set.reps} reps x {set.weight} kg
-            </p>
+            <div key={set.id} className="stat" style={{ marginBottom: 10 }}>
+              <div className="stat-label">Serie {set.set_number}</div>
+              <div className="stat-value">
+                {set.reps} reps · {set.weight} kg
+              </div>
+            </div>
           ))}
         </div>
       ))}
-    </div>
+    </main>
   )
 }

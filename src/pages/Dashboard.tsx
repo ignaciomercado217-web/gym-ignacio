@@ -16,6 +16,24 @@ type Exercise = {
   default_weight: number
 }
 
+type SetRow = {
+  id: number
+  exercise_log_id: number
+  weight: number
+  reps: number
+}
+
+type ExerciseLog = {
+  id: number
+  exercise_id: number
+}
+
+type PersonalRecord = {
+  exerciseName: string
+  weight: number
+  reps: number
+}
+
 export default function Dashboard() {
   const [workoutCount, setWorkoutCount] = useState(0)
   const [totalReps, setTotalReps] = useState(0)
@@ -25,6 +43,7 @@ export default function Dashboard() {
   const [bestExercise, setBestExercise] = useState('')
   const [bestExerciseProgress, setBestExerciseProgress] = useState(0)
   const [programmedWeights, setProgrammedWeights] = useState<Exercise[]>([])
+  const [personalRecords, setPersonalRecords] = useState<PersonalRecord[]>([])
 
   useEffect(() => {
     loadDashboard()
@@ -116,7 +135,9 @@ export default function Dashboard() {
     setBestExercise(winnerName)
     setBestExerciseProgress(Number(winnerProgress.toFixed(2)))
 
-    const { data: sets } = await supabase.from('sets').select('reps')
+    const { data: sets } = await supabase
+      .from('sets')
+      .select('id, exercise_log_id, weight, reps')
 
     const reps = (sets ?? []).reduce(
       (sum, item) => sum + Number(item.reps ?? 0),
@@ -137,6 +158,50 @@ export default function Dashboard() {
     )
 
     setProgrammedWeights(programmed)
+
+    const { data: exerciseLogs } = await supabase
+      .from('exercise_logs')
+      .select('id, exercise_id')
+
+    const exerciseNameMap: Record<number, string> = {}
+
+    ;(exercises ?? []).forEach((exercise: Exercise) => {
+      exerciseNameMap[exercise.id] = exercise.name
+    })
+
+    const logToExerciseMap: Record<number, number> = {}
+
+    ;(exerciseLogs ?? []).forEach((log: ExerciseLog) => {
+      logToExerciseMap[log.id] = log.exercise_id
+    })
+
+    const recordsMap: Record<number, PersonalRecord> = {}
+
+    ;(sets ?? []).forEach((set: SetRow) => {
+      const exerciseId = logToExerciseMap[set.exercise_log_id]
+
+      if (!exerciseId) return
+
+      const currentScore = Number(set.weight) * Number(set.reps)
+      const existingRecord = recordsMap[exerciseId]
+      const existingScore = existingRecord
+        ? existingRecord.weight * existingRecord.reps
+        : 0
+
+      if (!existingRecord || currentScore > existingScore) {
+        recordsMap[exerciseId] = {
+          exerciseName: exerciseNameMap[exerciseId] ?? 'Ejercicio',
+          weight: Number(set.weight),
+          reps: Number(set.reps),
+        }
+      }
+    })
+
+    const records = Object.values(recordsMap)
+      .sort((a, b) => b.weight * b.reps - a.weight * a.reps)
+      .slice(0, 5)
+
+    setPersonalRecords(records)
   }
 
   return (
@@ -195,6 +260,24 @@ export default function Dashboard() {
       <Link to="/history">
         <button className="secondary-button">Ver historial</button>
       </Link>
+
+      <h2>🏆 Récords personales</h2>
+
+      {personalRecords.length === 0 && (
+        <div className="card">
+          <p>No hay récords registrados todavía.</p>
+        </div>
+      )}
+
+      {personalRecords.map((record, index) => (
+        <div key={`${record.exerciseName}-${index}`} className="card">
+          <div className="stat-label">PR #{index + 1}</div>
+          <div className="stat-value">{record.exerciseName}</div>
+          <p>
+            {record.weight} kg x {record.reps} reps
+          </p>
+        </div>
+      ))}
 
       <h2>Próximos pesos</h2>
 
