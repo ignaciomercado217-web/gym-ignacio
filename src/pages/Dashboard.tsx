@@ -140,64 +140,76 @@ export default function Dashboard() {
   }
 
   return (
-    <div style={{ padding: 20 }}>
-      <h1>🏋️ Gym Ignacio</h1>
+    <main className="page">
+      <h1 className="title">Gym Ignacio</h1>
+      <p className="subtitle">Tu progreso de entrenamiento en un solo lugar.</p>
 
-      <div style={{ marginBottom: 20 }}>
-        <p>Entrenamientos realizados: {workoutCount}</p>
-        <p>Repeticiones totales: {totalReps}</p>
+      <div className="grid">
+        <div className="stat">
+          <div className="stat-label">Entrenamientos</div>
+          <div className="stat-value">{workoutCount}</div>
+        </div>
 
-        <p>
-          Último entrenamiento:{' '}
-          {lastWorkout
-            ? getPerformanceLabel(Number(lastWorkout.ire ?? 0))
-            : 'Sin datos'}
-        </p>
+        <div className="stat">
+          <div className="stat-label">Repeticiones</div>
+          <div className="stat-value">{totalReps}</div>
+        </div>
 
-        <p>Progreso promedio: {getPerformanceLabel(averageProgress)}</p>
+        <div className="stat">
+          <div className="stat-label">Último entrenamiento</div>
+          <div className="stat-value">
+            {lastWorkout
+              ? getPerformanceLabel(Number(lastWorkout.ire ?? 0))
+              : '—'}
+          </div>
+        </div>
 
-        <p>
-          Récord de progreso:{' '}
+        <div className="stat">
+          <div className="stat-label">Progreso promedio</div>
+          <div className="stat-value">{getPerformanceLabel(averageProgress)}</div>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="stat-label">Récord de progreso</div>
+        <div className="stat-value">
           {bestWorkout
             ? getPerformanceLabel(Number(bestWorkout.ire ?? 0))
-            : 'Sin datos'}
-        </p>
+            : '—'}
+        </div>
+      </div>
 
-        <p>
-          🏆 Ejercicio con mayor progreso:{' '}
+      <div className="card">
+        <div className="stat-label">Ejercicio con mayor progreso</div>
+        <div className="stat-value">
           {bestExercise
             ? `${bestExercise} (+${bestExerciseProgress}%)`
-            : 'Sin datos'}
-        </p>
+            : '—'}
+        </div>
       </div>
 
       <Link to="/workout">
-        <button style={{ marginBottom: 24 }}>Iniciar entrenamiento</button>
-        <br />
-
-<Link to="/history">
-  <button>Ver historial</button>
-</Link>
+        <button className="primary-button">Iniciar entrenamiento</button>
       </Link>
 
-      <h2>Próximos pesos programados</h2>
+      <Link to="/history">
+        <button className="secondary-button">Ver historial</button>
+      </Link>
 
-      {programmedWeights.length === 0 && <p>No hay pesos programados todavía.</p>}
+      <h2>Próximos pesos</h2>
+
+      {programmedWeights.length === 0 && (
+        <div className="card">
+          <p>No hay pesos programados todavía.</p>
+        </div>
+      )}
 
       {programmedWeights.map((exercise) => (
-        <div
-          key={exercise.id}
-          style={{
-            padding: 12,
-            marginBottom: 10,
-            border: '1px solid #ddd',
-            borderRadius: 8,
-          }}
-        >
+        <div key={exercise.id} className="card">
           <strong>{exercise.name}</strong>
           <p>Próxima sesión: {exercise.next_weight} kg</p>
         </div>
       ))}
-    </div>
+    </main>
   )
 }

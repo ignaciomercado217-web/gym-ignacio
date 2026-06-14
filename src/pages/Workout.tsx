@@ -69,7 +69,9 @@ export default function Workout() {
     const initialInputs: Record<number, ExerciseInput> = {}
 
     loadedExercises.forEach((exercise) => {
-      const startingWeight = Number(exercise.next_weight ?? exercise.default_weight ?? 0)
+      const startingWeight = Number(
+        exercise.next_weight ?? exercise.default_weight ?? 0
+      )
 
       initialInputs[exercise.id] = {
         exerciseId: exercise.id,
@@ -276,7 +278,9 @@ export default function Workout() {
       }))
 
       if (setsToInsert.length > 0) {
-        const { error: setsError } = await supabase.from('sets').insert(setsToInsert)
+        const { error: setsError } = await supabase
+          .from('sets')
+          .insert(setsToInsert)
 
         if (setsError) {
           setMessage(`Error guardando series: ${setsError.message}`)
@@ -320,28 +324,35 @@ export default function Workout() {
   }
 
   return (
-    <div style={{ padding: 20 }}>
+    <main className="page">
       <Link to="/">
-  <button style={{ marginBottom: 16 }}>
-    ← Volver al inicio
-  </button>
-</Link>
-      <h1>Iniciar entrenamiento</h1>
+        <button className="secondary-button" style={{ marginBottom: 18 }}>
+          ← Volver al inicio
+        </button>
+      </Link>
+
+      <h1 className="title">Entrenamiento</h1>
+      <p className="subtitle">Registrá tu sesión y seguí tu progreso.</p>
 
       {!selectedRoutine &&
         routines.map((routine) => (
-          <button
+          <div
             key={routine.id}
+            className="card"
+            style={{ cursor: 'pointer' }}
             onClick={() => selectRoutine(routine)}
-            style={{ display: 'block', marginBottom: 12 }}
           >
-            {routine.name}
-          </button>
+            <div className="stat-label">Rutina</div>
+            <div className="stat-value">{routine.name}</div>
+          </div>
         ))}
 
       {selectedRoutine && (
         <>
-          <h2>{selectedRoutine.name}</h2>
+          <div className="card">
+            <div className="stat-label">Rutina seleccionada</div>
+            <div className="stat-value">{selectedRoutine.name}</div>
+          </div>
 
           {exercises.map((exercise) => {
             const input = inputs[exercise.id]
@@ -353,104 +364,89 @@ export default function Workout() {
             )
 
             return (
-              <div
-                key={exercise.id}
-                style={{
-                  marginBottom: 24,
-                  padding: 16,
-                  border: '1px solid #ddd',
-                  borderRadius: 8,
-                }}
-              >
-                <h3>{exercise.name}</h3>
+              <div key={exercise.id} className="card">
+                <h2 style={{ marginTop: 0 }}>{exercise.name}</h2>
 
-                <p>
+                <p className="subtitle" style={{ marginBottom: 18 }}>
                   Objetivo: {exercise.target_sets} series · {exercise.min_reps}-
                   {exercise.max_reps} reps
                 </p>
 
-                <label>
-                  Peso kg:{' '}
-                  <input
-                    type="number"
-                    value={input.weight}
-                    onChange={(e) =>
-                      updateWeight(exercise.id, Number(e.target.value))
-                    }
-                  />
-                </label>
+                <label className="stat-label">Peso kg</label>
+                <input
+                  className="input"
+                  type="number"
+                  value={input.weight}
+                  onChange={(e) =>
+                    updateWeight(exercise.id, Number(e.target.value))
+                  }
+                />
 
-                <div style={{ marginTop: 12 }}>
+                <div style={{ marginTop: 18 }}>
                   {input.reps.map((reps, index) => (
-                    <div key={index} style={{ marginBottom: 8 }}>
-                      <label>
-                        Serie {index + 1} reps:{' '}
-                        <input
-                          type="number"
-                          value={reps || ''}
-                          onChange={(e) =>
-                            updateReps(
-                              exercise.id,
-                              index,
-                              Number(e.target.value)
-                            )
-                          }
-                        />
-                      </label>
+                    <div key={index} style={{ marginBottom: 12 }}>
+                      <label className="stat-label">Serie {index + 1} reps</label>
+                      <input
+                        className="input"
+                        type="number"
+                        value={reps || ''}
+                        onChange={(e) =>
+                          updateReps(
+                            exercise.id,
+                            index,
+                            Number(e.target.value)
+                          )
+                        }
+                      />
                     </div>
                   ))}
                 </div>
 
-                <p>Volumen: {exerciseVolume} kg</p>
+                <div className="stat" style={{ marginTop: 16 }}>
+                  <div className="stat-label">Volumen</div>
+                  <div className="stat-value">{exerciseVolume} kg</div>
+                </div>
 
                 {input.goalCompleted && (
-                  <div
-                    style={{
-                      marginTop: 12,
-                      padding: 12,
-                      border: '1px solid green',
-                      borderRadius: 8,
-                    }}
-                  >
+                  <div className="success-box">
                     <strong>✅ Objetivo cumplido</strong>
                     <p>Programar peso para la próxima semana:</p>
 
                     <input
+                      className="input"
                       type="number"
                       value={input.nextWeight}
                       onChange={(e) =>
                         updateNextWeight(exercise.id, Number(e.target.value))
                       }
-                    />{' '}
-                    kg
+                    />
                   </div>
                 )}
               </div>
             )
           })}
 
-          <button onClick={finishWorkout} disabled={saving}>
+          <button
+            className="primary-button"
+            onClick={finishWorkout}
+            disabled={saving}
+          >
             {saving ? 'Guardando...' : 'Finalizar entrenamiento'}
           </button>
 
-          {message && <p>{message}</p>}
+          {message && <div className="card">{message}</div>}
 
           {performance !== null && (
             <div style={{ marginTop: 24 }}>
               <h2>Resumen del entrenamiento</h2>
 
-              <h3>Rendimiento del entrenamiento: {performance}%</h3>
+              <div className="card">
+                <div className="stat-label">Rendimiento del entrenamiento</div>
+                <div className="stat-value">{performance}%</div>
+              </div>
 
               {results.map((result) => (
-                <div
-                  key={result.exerciseName}
-                  style={{
-                    marginBottom: 12,
-                    padding: 12,
-                    border: '1px solid #ddd',
-                    borderRadius: 8,
-                  }}
-                >
+                <div key={result.exerciseName} className="card">
                   <strong>{result.exerciseName}</strong>
 
                   <p>Volumen anterior: {result.previousVolume} kg</p>
@@ -467,6 +463,6 @@ export default function Workout() {
           )}
         </>
       )}
-    </div>
+    </main>
   )
 }
