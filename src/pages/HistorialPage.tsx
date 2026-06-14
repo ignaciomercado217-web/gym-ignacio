@@ -21,35 +21,57 @@ export default function History() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    async function loadHistory() {
-      const { data: routineData } = await supabase
-        .from('routines')
-        .select('id, name')
-
-      const routineMap: Record<number, string> = {}
-
-      routineData?.forEach((routine: Routine) => {
-        routineMap[routine.id] = routine.name
-      })
-
-      setRoutines(routineMap)
-
-      const { data, error } = await supabase
-        .from('workouts')
-        .select('id, routine_id, workout_date, ire, total_volume')
-        .order('workout_date', { ascending: false })
-        .order('id', { ascending: false })
-
-      if (error) {
-        setError(error.message)
-        return
-      }
-
-      setWorkouts(data ?? [])
-    }
-
     loadHistory()
   }, [])
+
+  async function loadHistory() {
+    const { data: routineData } = await supabase
+      .from('routines')
+      .select('id, name')
+
+    const routineMap: Record<number, string> = {}
+
+    routineData?.forEach((routine: Routine) => {
+      routineMap[routine.id] = routine.name
+    })
+
+    setRoutines(routineMap)
+
+    const { data, error } = await supabase
+      .from('workouts')
+      .select('id, routine_id, workout_date, ire, total_volume')
+      .order('workout_date', { ascending: false })
+      .order('id', { ascending: false })
+
+    if (error) {
+      setError(error.message)
+      return
+    }
+
+    setWorkouts(data ?? [])
+  }
+
+  async function deleteWorkout(workoutId: number) {
+    const confirmDelete = window.confirm(
+      '¿Seguro que querés borrar este entrenamiento? Esta acción no se puede deshacer.'
+    )
+
+    if (!confirmDelete) return
+
+    const { error } = await supabase
+      .from('workouts')
+      .delete()
+      .eq('id', workoutId)
+
+    if (error) {
+      setError(error.message)
+      return
+    }
+
+    setWorkouts((current) =>
+      current.filter((workout) => workout.id !== workoutId)
+    )
+  }
 
   function getPerformanceLabel(value: number) {
     if (value > 0) return `🟢 +${value}%`
@@ -94,8 +116,21 @@ export default function History() {
           </div>
 
           <Link to={`/history/${workout.id}`}>
-            <button className="secondary-button">Ver detalle</button>
+            <button className="secondary-button" style={{ marginBottom: 10 }}>
+              Ver detalle
+            </button>
           </Link>
+
+          <button
+            className="secondary-button"
+            style={{
+              background: 'rgba(220, 38, 38, 0.18)',
+              color: '#ff6b6b',
+            }}
+            onClick={() => deleteWorkout(workout.id)}
+          >
+            Borrar entrenamiento
+          </button>
         </div>
       ))}
     </main>
