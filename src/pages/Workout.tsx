@@ -1,10 +1,8 @@
+import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-type Routine = {
-  id: number
-  name: string
-}
+type Routine = { id: number; name: string }
 
 type Exercise = {
   id: number
@@ -13,12 +11,15 @@ type Exercise = {
   min_reps: number
   max_reps: number
   default_weight: number
+  next_weight: number | null
 }
 
 type ExerciseInput = {
   exerciseId: number
   weight: number
   reps: number[]
+  nextWeight: number
+  goalCompleted: boolean
 }
 
 type ExerciseResult = {
@@ -27,6 +28,8 @@ type ExerciseResult = {
   previousVolume: number
   improvementPercent: number
   status: 'better' | 'same' | 'worse'
+  goalCompleted: boolean
+  nextWeight: number
 }
 
 export default function Workout() {
@@ -37,7 +40,7 @@ export default function Workout() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [results, setResults] = useState<ExerciseResult[]>([])
-  const [ire, setIre] = useState<number | null>(null)
+  const [performance, setPerformance] = useState<number | null>(null)
 
   useEffect(() => {
     async function loadRoutines() {
@@ -52,7 +55,7 @@ export default function Workout() {
     setSelectedRoutine(routine)
     setMessage('')
     setResults([])
-    setIre(null)
+    setPerformance(null)
 
     const { data } = await supabase
       .from('exercises')
@@ -66,10 +69,14 @@ export default function Workout() {
     const initialInputs: Record<number, ExerciseInput> = {}
 
     loadedExercises.forEach((exercise) => {
+      const startingWeight = Number(exercise.next_weight ?? exercise.default_weight ?? 0)
+
       initialInputs[exercise.id] = {
         exerciseId: exercise.id,
-        weight: Number(exercise.default_weight ?? 0),
+        weight: startingWeight,
         reps: Array(exercise.target_sets).fill(0),
+        nextWeight: startingWeight + 2.5,
+        goalCompleted: false,
       }
     })
 
@@ -82,21 +89,40 @@ export default function Workout() {
       [exerciseId]: {
         ...current[exerciseId],
         weight,
+        nextWeight: weight + 2.5,
+      },
+    }))
+  }
+
+  function updateNextWeight(exerciseId: number, nextWeight: number) {
+    setInputs((current) => ({
+      ...current,
+      [exerciseId]: {
+        ...current[exerciseId],
+        nextWeight,
       },
     }))
   }
 
   function updateReps(exerciseId: number, setIndex: number, reps: number) {
+    const exercise = exercises.find((item) => item.id === exerciseId)
+    if (!exercise) return
+
     setInputs((current) => {
       const currentInput = current[exerciseId]
       const newReps = [...currentInput.reps]
       newReps[setIndex] = reps
+
+      const completed =
+        newReps.length === exercise.target_sets &&
+        newReps.every((rep) => rep >= exercise.max_reps)
 
       return {
         ...current,
         [exerciseId]: {
           ...currentInput,
           reps: newReps,
+          goalCompleted: completed,
         },
       }
     })
@@ -147,7 +173,7 @@ export default function Workout() {
     setSaving(true)
     setMessage('')
     setResults([])
-    setIre(null)
+    setPerformance(null)
 
     const today = new Date().toISOString().slice(0, 10)
 
@@ -180,6 +206,7 @@ export default function Workout() {
     for (const exercise of exercises) {
       const input = inputs[exercise.id]
       const validReps = input.reps.filter((rep) => rep > 0)
+
       const currentVolume = validReps.reduce(
         (sum, reps) => sum + reps * input.weight,
         0
@@ -204,12 +231,23 @@ export default function Workout() {
       if (status === 'same') sameExercises++
       if (status === 'worse') worseExercises++
 
+      if (input.goalCompleted) {
+        await supabase
+          .from('exercises')
+          .update({
+            next_weight: input.nextWeight,
+          })
+          .eq('id', exercise.id)
+      }
+
       exerciseResults.push({
         exerciseName: exercise.name,
         currentVolume,
         previousVolume,
         improvementPercent,
         status,
+        goalCompleted: input.goalCompleted,
+        nextWeight: input.nextWeight,
       })
 
       const { data: exerciseLog, error: logError } = await supabase
@@ -238,9 +276,7 @@ export default function Workout() {
       }))
 
       if (setsToInsert.length > 0) {
-        const { error: setsError } = await supabase
-          .from('sets')
-          .insert(setsToInsert)
+        const { error: setsError } = await supabase.from('sets').insert(setsToInsert)
 
         if (setsError) {
           setMessage(`Error guardando series: ${setsError.message}`)
@@ -254,7 +290,7 @@ export default function Workout() {
       (result) => result.previousVolume > 0
     )
 
-    const finalIre =
+    const finalPerformance =
       validComparisons.length > 0
         ? Number(
             (
@@ -270,7 +306,7 @@ export default function Workout() {
       .from('workouts')
       .update({
         total_volume: totalVolume,
-        ire: finalIre,
+        ire: finalPerformance,
         improved_exercises: improvedExercises,
         same_exercises: sameExercises,
         worse_exercises: worseExercises,
@@ -278,13 +314,18 @@ export default function Workout() {
       .eq('id', workout.id)
 
     setResults(exerciseResults)
-    setIre(finalIre)
+    setPerformance(finalPerformance)
     setSaving(false)
     setMessage(`Entrenamiento guardado. Volumen total: ${totalVolume} kg`)
   }
 
   return (
     <div style={{ padding: 20 }}>
+      <Link to="/">
+  <button style={{ marginBottom: 16 }}>
+    ← Volver al inicio
+  </button>
+</Link>
       <h1>Iniciar entrenamiento</h1>
 
       {!selectedRoutine &&
@@ -304,7 +345,6 @@ export default function Workout() {
 
           {exercises.map((exercise) => {
             const input = inputs[exercise.id]
-
             if (!input) return null
 
             const exerciseVolume = input.reps.reduce(
@@ -362,6 +402,29 @@ export default function Workout() {
                 </div>
 
                 <p>Volumen: {exerciseVolume} kg</p>
+
+                {input.goalCompleted && (
+                  <div
+                    style={{
+                      marginTop: 12,
+                      padding: 12,
+                      border: '1px solid green',
+                      borderRadius: 8,
+                    }}
+                  >
+                    <strong>✅ Objetivo cumplido</strong>
+                    <p>Programar peso para la próxima semana:</p>
+
+                    <input
+                      type="number"
+                      value={input.nextWeight}
+                      onChange={(e) =>
+                        updateNextWeight(exercise.id, Number(e.target.value))
+                      }
+                    />{' '}
+                    kg
+                  </div>
+                )}
               </div>
             )
           })}
@@ -372,11 +435,11 @@ export default function Workout() {
 
           {message && <p>{message}</p>}
 
-          {ire !== null && (
+          {performance !== null && (
             <div style={{ marginTop: 24 }}>
               <h2>Resumen del entrenamiento</h2>
 
-              <h3>IRE: {ire}%</h3>
+              <h3>Rendimiento del entrenamiento: {performance}%</h3>
 
               {results.map((result) => (
                 <div
@@ -394,6 +457,10 @@ export default function Workout() {
                   <p>Volumen actual: {result.currentVolume} kg</p>
                   <p>Mejora: {result.improvementPercent}%</p>
                   <p>{getStatusLabel(result.status)}</p>
+
+                  {result.goalCompleted && (
+                    <p>✅ Próxima semana: {result.nextWeight} kg</p>
+                  )}
                 </div>
               ))}
             </div>
