@@ -12,6 +12,7 @@ type Exercise = {
   max_reps: number
   default_weight: number
   next_weight: number | null
+  active?: boolean | null
 }
 
 type ExerciseInput = {
@@ -57,18 +58,26 @@ export default function Workout() {
     setResults([])
     setPerformance(null)
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('exercises')
       .select('*')
       .eq('routine_id', routine.id)
       .order('id')
 
-    const loadedExercises = data ?? []
-    setExercises(loadedExercises)
+    if (error) {
+      setMessage(`Error cargando ejercicios: ${error.message}`)
+      return
+    }
+
+    const activeExercises = (data ?? []).filter(
+      (exercise) => exercise.active !== false
+    )
+
+    setExercises(activeExercises)
 
     const initialInputs: Record<number, ExerciseInput> = {}
 
-    loadedExercises.forEach((exercise) => {
+    activeExercises.forEach((exercise) => {
       const startingWeight = Number(
         exercise.next_weight ?? exercise.default_weight ?? 0
       )
@@ -354,6 +363,10 @@ export default function Workout() {
             <div className="stat-value">{selectedRoutine.name}</div>
           </div>
 
+          {exercises.length === 0 && (
+            <div className="card">No hay ejercicios activos para esta rutina.</div>
+          )}
+
           {exercises.map((exercise) => {
             const input = inputs[exercise.id]
             if (!input) return null
@@ -426,13 +439,15 @@ export default function Workout() {
             )
           })}
 
-          <button
-            className="primary-button"
-            onClick={finishWorkout}
-            disabled={saving}
-          >
-            {saving ? 'Guardando...' : 'Finalizar entrenamiento'}
-          </button>
+          {exercises.length > 0 && (
+            <button
+              className="primary-button"
+              onClick={finishWorkout}
+              disabled={saving}
+            >
+              {saving ? 'Guardando...' : 'Finalizar entrenamiento'}
+            </button>
+          )}
 
           {message && <div className="card">{message}</div>}
 
