@@ -260,6 +260,14 @@ export default function Dashboard() {
       <Link to="/history">
         <button className="secondary-button">Ver historial</button>
       </Link>
+      
+     <div style={{ marginTop: 12 }}>
+  <Link to="/routine-manager">
+    <button className="secondary-button">
+      Administrar rutina
+    </button>
+  </Link>
+</div>
 
       <h2>🏆 Récords personales</h2>
 
