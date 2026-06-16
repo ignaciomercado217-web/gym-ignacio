@@ -14,6 +14,11 @@ type Exercise = {
   active: boolean | null
 }
 
+type Routine = {
+  id: number
+  name: string
+}
+
 type EditingExercise = {
   id: number
   name: string
@@ -24,8 +29,19 @@ type EditingExercise = {
   next_weight: number
 }
 
+type NewExercise = {
+  routine_id: number
+  name: string
+  target_sets: number
+  min_reps: number
+  max_reps: number
+  default_weight: number
+  next_weight: number
+}
+
 export default function RoutineManager() {
   const [exercises, setExercises] = useState<Exercise[]>([])
+  const [routines, setRoutines] = useState<Routine[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -33,28 +49,110 @@ export default function RoutineManager() {
   const [editingExercise, setEditingExercise] =
     useState<EditingExercise | null>(null)
 
+  const [newExercise, setNewExercise] = useState<NewExercise>({
+    routine_id: 1,
+    name: '',
+    target_sets: 3,
+    min_reps: 8,
+    max_reps: 10,
+    default_weight: 0,
+    next_weight: 0,
+  })
+
   useEffect(() => {
-    loadExercises()
+    loadData()
   }, [])
 
-  async function loadExercises() {
+  async function loadData() {
     setLoading(true)
     setError('')
 
-    const { data, error } = await supabase
+    const { data: routineData, error: routineError } = await supabase
+      .from('routines')
+      .select('id, name')
+      .order('id')
+
+    if (routineError) {
+      setError(routineError.message)
+      setLoading(false)
+      return
+    }
+
+    setRoutines(routineData ?? [])
+
+    const firstRoutineId = routineData?.[0]?.id ?? 1
+    setNewExercise((current) => ({
+      ...current,
+      routine_id: current.routine_id || firstRoutineId,
+    }))
+
+    const { data: exerciseData, error: exerciseError } = await supabase
       .from('exercises')
       .select('*')
       .order('routine_id')
       .order('id')
 
-    if (error) {
-      setError(error.message)
+    if (exerciseError) {
+      setError(exerciseError.message)
       setLoading(false)
       return
     }
 
-    setExercises(data ?? [])
+    setExercises(exerciseData ?? [])
     setLoading(false)
+  }
+
+  function updateNewExerciseField(
+    field: keyof NewExercise,
+    value: string | number
+  ) {
+    setNewExercise({
+      ...newExercise,
+      [field]: value,
+    })
+  }
+
+  async function createExercise() {
+    setSaving(true)
+    setError('')
+    setMessage('')
+
+    if (!newExercise.name.trim()) {
+      setError('El nombre del ejercicio no puede estar vacío.')
+      setSaving(false)
+      return
+    }
+
+    const { error } = await supabase.from('exercises').insert({
+      routine_id: Number(newExercise.routine_id),
+      name: newExercise.name.trim(),
+      target_sets: Number(newExercise.target_sets),
+      min_reps: Number(newExercise.min_reps),
+      max_reps: Number(newExercise.max_reps),
+      default_weight: Number(newExercise.default_weight),
+      next_weight: Number(newExercise.next_weight || newExercise.default_weight),
+      active: true,
+    })
+
+    if (error) {
+      setError(error.message)
+      setSaving(false)
+      return
+    }
+
+    setMessage('Ejercicio agregado correctamente.')
+    setNewExercise({
+      routine_id: newExercise.routine_id,
+      name: '',
+      target_sets: 3,
+      min_reps: 8,
+      max_reps: 10,
+      default_weight: 0,
+      next_weight: 0,
+    })
+
+    setSaving(false)
+    loadData()
   }
 
   function startEditing(exercise: Exercise) {
@@ -70,10 +168,6 @@ export default function RoutineManager() {
       default_weight: Number(exercise.default_weight ?? 0),
       next_weight: Number(exercise.next_weight ?? exercise.default_weight ?? 0),
     })
-  }
-
-  function cancelEditing() {
-    setEditingExercise(null)
   }
 
   function updateEditingField(
@@ -116,7 +210,7 @@ export default function RoutineManager() {
     setMessage('Ejercicio actualizado correctamente.')
     setEditingExercise(null)
     setSaving(false)
-    loadExercises()
+    loadData()
   }
 
   async function toggleExercise(exercise: Exercise) {
@@ -132,7 +226,11 @@ export default function RoutineManager() {
       return
     }
 
-    loadExercises()
+    loadData()
+  }
+
+  function getRoutineName(routineId: number) {
+    return routines.find((routine) => routine.id === routineId)?.name ?? `Rutina ${routineId}`
   }
 
   return (
@@ -144,16 +242,9 @@ export default function RoutineManager() {
       </Link>
 
       <h1 className="title">Administrar rutina</h1>
+      <p className="subtitle">Agregá, editá, activá o desactivá ejercicios.</p>
 
-      <p className="subtitle">
-        Editá ejercicios, pesos, series y rangos de repeticiones.
-      </p>
-
-      {loading && (
-        <div className="card">
-          <p>Cargando ejercicios...</p>
-        </div>
-      )}
+      {loading && <div className="card">Cargando ejercicios...</div>}
 
       {error && (
         <div className="card">
@@ -166,6 +257,104 @@ export default function RoutineManager() {
           <p>{message}</p>
         </div>
       )}
+
+      <div className="card">
+        <h2 style={{ marginTop: 0 }}>Agregar ejercicio</h2>
+
+        <label className="stat-label">Rutina</label>
+        <select
+          className="input"
+          value={newExercise.routine_id}
+          onChange={(e) =>
+            updateNewExerciseField('routine_id', Number(e.target.value))
+          }
+        >
+          {routines.map((routine) => (
+            <option key={routine.id} value={routine.id}>
+              {routine.name}
+            </option>
+          ))}
+        </select>
+
+        <div style={{ marginTop: 14 }}>
+          <label className="stat-label">Nombre</label>
+          <input
+            className="input"
+            value={newExercise.name}
+            onChange={(e) => updateNewExerciseField('name', e.target.value)}
+            placeholder="Ej: Press inclinado"
+          />
+        </div>
+
+        <div style={{ marginTop: 14 }}>
+          <label className="stat-label">Series</label>
+          <input
+            className="input"
+            type="number"
+            value={newExercise.target_sets}
+            onChange={(e) =>
+              updateNewExerciseField('target_sets', Number(e.target.value))
+            }
+          />
+        </div>
+
+        <div style={{ marginTop: 14 }}>
+          <label className="stat-label">Reps mínimas</label>
+          <input
+            className="input"
+            type="number"
+            value={newExercise.min_reps}
+            onChange={(e) =>
+              updateNewExerciseField('min_reps', Number(e.target.value))
+            }
+          />
+        </div>
+
+        <div style={{ marginTop: 14 }}>
+          <label className="stat-label">Reps máximas</label>
+          <input
+            className="input"
+            type="number"
+            value={newExercise.max_reps}
+            onChange={(e) =>
+              updateNewExerciseField('max_reps', Number(e.target.value))
+            }
+          />
+        </div>
+
+        <div style={{ marginTop: 14 }}>
+          <label className="stat-label">Peso base</label>
+          <input
+            className="input"
+            type="number"
+            value={newExercise.default_weight}
+            onChange={(e) =>
+              updateNewExerciseField('default_weight', Number(e.target.value))
+            }
+          />
+        </div>
+
+        <div style={{ marginTop: 14 }}>
+          <label className="stat-label">Próximo peso</label>
+          <input
+            className="input"
+            type="number"
+            value={newExercise.next_weight}
+            onChange={(e) =>
+              updateNewExerciseField('next_weight', Number(e.target.value))
+            }
+          />
+        </div>
+
+        <button
+          className="primary-button"
+          style={{ marginTop: 18 }}
+          onClick={createExercise}
+          disabled={saving}
+        >
+          {saving ? 'Guardando...' : 'Agregar ejercicio'}
+        </button>
+      </div>
 
       {editingExercise && (
         <div className="card">
@@ -247,21 +436,22 @@ export default function RoutineManager() {
             {saving ? 'Guardando...' : 'Guardar cambios'}
           </button>
 
-          <button className="secondary-button" onClick={cancelEditing}>
+          <button
+            className="secondary-button"
+            onClick={() => setEditingExercise(null)}
+          >
             Cancelar
           </button>
         </div>
       )}
 
       {!loading && exercises.length === 0 && (
-        <div className="card">
-          <p>No se encontraron ejercicios.</p>
-        </div>
+        <div className="card">No se encontraron ejercicios.</div>
       )}
 
       {exercises.map((exercise) => (
         <div key={exercise.id} className="card">
-          <div className="stat-label">Rutina #{exercise.routine_id}</div>
+          <div className="stat-label">{getRoutineName(exercise.routine_id)}</div>
           <div className="stat-value">{exercise.name}</div>
 
           <p>
@@ -272,8 +462,7 @@ export default function RoutineManager() {
           <p>
             Peso base: {exercise.default_weight ?? 0} kg
             <br />
-            Próximo peso: {exercise.next_weight ?? exercise.default_weight ?? 0}{' '}
-            kg
+            Próximo peso: {exercise.next_weight ?? exercise.default_weight ?? 0} kg
           </p>
 
           <p>{exercise.active === true ? '🟢 Activo' : '🔴 Inactivo'}</p>
